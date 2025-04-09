@@ -21,18 +21,19 @@ type Props = {
 export default function ChartTabContent({ moods }: Props) {
   const [range, setRange] = useState<'7' | '30' | '365' | 'all'>('30')
 
+  // 如果你不再传 moods，下面的 filteredMoods 可以删掉
   const filteredMoods = useMemo(() => {
     if (range === 'all') return moods
     const days = parseInt(range, 10)
     const cutoff = dayjs().subtract(days, 'day')
-    return moods.filter(m => dayjs(m.created_at).isAfter(cutoff))
+    return moods.filter((m) => dayjs(m.created_at).isAfter(cutoff))
   }, [moods, range])
 
   return (
     <section className="py-10 px-4 max-w-6xl mx-auto space-y-16">
-      <LineChartComponent range={range} setRange={setRange} />
-      <KeywordBubbleChart range={range} setRange={setRange} />
-      <EmotionBarChart moods={moods} range={range} setRange={setRange} />
+      <LineChartComponent moods={filteredMoods} range={range} setRange={setRange} />
+      <KeywordBubbleChart moods={filteredMoods} range={range} setRange={setRange} />
+      <EmotionBarChart moods={filteredMoods} range={range} setRange={setRange} />
     </section>
   )
 }

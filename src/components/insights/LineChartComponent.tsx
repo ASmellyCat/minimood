@@ -12,10 +12,15 @@ import {
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-type Props = {
+type LineChartProps = {
+  moods: {
+    id: string
+    mood_score: number
+    created_at: string
+  }[]
   range: '7' | '30' | '365' | 'all'
-  setRange: (r: '7' | '30' | '365' | 'all') => void
 }
+
 
 type TrendPoint = {
   date: string
@@ -35,7 +40,7 @@ const emojiTicks = [
   { value: 10, label: '😄' },
 ]
 
-export default function LineChartComponent({ range, setRange }: Props) {
+export default function LineChartComponent({ moods, range }: LineChartProps) {
   const [data, setData] = useState<TrendPoint[]>([])
   const [loading, setLoading] = useState(false)
 

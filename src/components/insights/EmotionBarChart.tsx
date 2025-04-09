@@ -12,10 +12,18 @@ import {
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-type Props = {
+type EmotionBarChartProps = {
+  moods: {
+    id: string
+    mood_score: number
+    created_at: string
+    keywords?: string[]
+    emotion_category?: string
+  }[]
   range: '7' | '30' | '365' | 'all'
-  setRange: (r: '7' | '30' | '365' | 'all') => void
+  setRange: React.Dispatch<React.SetStateAction<'7' | '30' | '365' | 'all'>>
 }
+
 
 type EmotionData = {
   emotion: string
@@ -36,7 +44,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export default function EmotionBarChart({ range, setRange }: Props) {
+export default function EmotionBarChart({ moods, range, setRange }: EmotionBarChartProps) {
   const [data, setData] = useState<EmotionData[]>([])
   const [loading, setLoading] = useState(false)
 

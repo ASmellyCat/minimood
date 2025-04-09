@@ -16,6 +16,13 @@ type KeywordData = {
 type PositionedKeyword = KeywordData & { x: number; y: number; r: number }
 
 type Props = {
+  moods: {
+    id: string
+    mood_score: number
+    created_at: string
+    keywords?: string[]
+    emotion_category?: string
+  }[]
   range: '7' | '30' | '365' | 'all'
   setRange: (range: '7' | '30' | '365' | 'all') => void
 }
@@ -33,7 +40,7 @@ const mockKeywords: KeywordData[] = [
   { keyword: 'rain', frequency: 5, averageScore: 4.4 },
 ]
 
-export default function KeywordBubbleChart({ range, setRange }: Props) {
+export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
   const [data, setData] = useState<PositionedKeyword[]>([])
   const [loading, setLoading] = useState(true)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null)
