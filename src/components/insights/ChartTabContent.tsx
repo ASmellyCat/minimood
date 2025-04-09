@@ -1,11 +1,16 @@
-'use client' 
+'use client'
 
 import LineChartComponent from './LineChartComponent'
+import KeywordBubbleChart from './KeywordBubbleChart'
+import EmotionBarChart from './EmotionBarChart'
+import { useState } from 'react'
 
 type Mood = {
   id: string
   mood_score: number
   created_at: string
+  keywords?: string[]
+  emotion_category?: string
 }
 
 type Props = {
@@ -13,14 +18,13 @@ type Props = {
 }
 
 export default function ChartTabContent({ moods }: Props) {
-  return (
-    <section className="py-10 px-4 max-w-4xl mx-auto space-y-12">
-      {/* Chart 1: Line Chart - Mood Score Trend */}
-      <LineChartComponent moods={moods} />
+  const [range, setRange] = useState<'7' | '30' | '365' | 'all'>('30')
 
-      {/* Future charts can be added here, vertically stacked */}
-      {/* <BarChartComponent moods={moods} /> */}
-      {/* <RadarChartComponent moods={moods} /> */}
+  return (
+    <section className="py-10 px-4 max-w-6xl mx-auto space-y-16">
+      <LineChartComponent moods={moods} range={range} />
+      <KeywordBubbleChart range={range} />
+      <EmotionBarChart moods={moods} range={range} setRange={setRange} />
     </section>
   )
 }
