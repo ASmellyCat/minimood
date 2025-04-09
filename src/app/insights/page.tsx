@@ -70,7 +70,7 @@ export default function InsightsPage() {
               value="ai"
               className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white rounded-md px-4 py-2"
             >
-              🧠 AI Analysis
+              🧠 Insight of you
             </TabsTrigger>
           </TabsList>
 
