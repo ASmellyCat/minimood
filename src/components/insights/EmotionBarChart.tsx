@@ -24,7 +24,6 @@ type EmotionBarChartProps = {
   setRange: React.Dispatch<React.SetStateAction<'7' | '30' | '365' | 'all'>>
 }
 
-
 type EmotionData = {
   emotion: string
   percentage: number
@@ -44,7 +43,11 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export default function EmotionBarChart({ moods, range, setRange }: EmotionBarChartProps) {
+export default function EmotionBarChart({
+  moods,
+  range,
+  setRange,
+}: EmotionBarChartProps) {
   const [data, setData] = useState<EmotionData[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -52,8 +55,13 @@ export default function EmotionBarChart({ moods, range, setRange }: EmotionBarCh
     const fetchData = async () => {
       setLoading(true)
       const { data: { user }, error } = await supabase.auth.getUser()
-      if (error || !user) return
+      if (error || !user) {
+        console.warn('[EmotionBarChart] No authenticated user.')
+        setLoading(false)
+        return
+      }
 
+      // Call the emotion-category-cache route
       const res = await fetch('/api/emotion-category-cache', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,8 +70,12 @@ export default function EmotionBarChart({ moods, range, setRange }: EmotionBarCh
 
       const json = await res.json()
       if (res.ok && json.category_freq) {
-        const total = Object.values(json.category_freq).reduce((a: number, b: number) => a + b, 0)
-        const parsed = Object.entries(json.category_freq).map(([emotion, count]) => ({
+        // Assert to let TS know this is Record<string, number>
+        const freq = json.category_freq as Record<string, number>
+
+        // Now reduce safely
+        const total = Object.values(freq).reduce((a, b) => a + b, 0)
+        const parsed = Object.entries(freq).map(([emotion, count]) => ({
           emotion,
           percentage: parseFloat(((count / total) * 100).toFixed(2)),
         }))
@@ -76,8 +88,10 @@ export default function EmotionBarChart({ moods, range, setRange }: EmotionBarCh
     fetchData()
   }, [range])
 
+  // find the highest bar, used for XAxis domain
   const max = Math.ceil(Math.max(...data.map(d => d.percentage), 10) / 10) * 10
 
+  // your range selection UI
   const ranges: { label: string; value: '7' | '30' | '365' | 'all' }[] = [
     { label: '7 Days', value: '7' },
     { label: '30 Days', value: '30' },
@@ -129,7 +143,10 @@ export default function EmotionBarChart({ moods, range, setRange }: EmotionBarCh
             />
             <Bar dataKey="percentage" radius={[10, 10, 10, 10]}>
               {data.map((entry, idx) => (
-                <Cell key={idx} fill={EMOTION_COLORS[entry.emotion] || '#8884d8'} />
+                <Cell
+                  key={idx}
+                  fill={EMOTION_COLORS[entry.emotion] || '#8884d8'}
+                />
               ))}
             </Bar>
           </BarChart>

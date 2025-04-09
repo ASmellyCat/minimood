@@ -6,6 +6,7 @@ import * as d3 from 'd3'
 import * as d3Force from 'd3-force'
 import { useMockMode } from '@/lib/useMock'
 
+/** Data for each keyword from the server or mock data */
 type KeywordData = {
   keyword: string
   frequency: number
@@ -13,18 +14,26 @@ type KeywordData = {
   created_at?: string
 }
 
-type PositionedKeyword = KeywordData & { x: number; y: number; r: number }
+/** Extended with x, y, r for positioning in the bubble chart */
+type PositionedKeyword = KeywordData & {
+  x: number
+  y: number
+  r: number
+}
+
+/** Props from the parent component (ChartTabContent) */
+type Mood = {
+  id: string
+  mood_score: number
+  created_at: string
+  keywords?: string[]
+  emotion_category?: string
+}
 
 type Props = {
-  moods: {
-    id: string
-    mood_score: number
-    created_at: string
-    keywords?: string[]
-    emotion_category?: string
-  }[]
+  moods: Mood[]
   range: '7' | '30' | '365' | 'all'
-  setRange: (range: '7' | '30' | '365' | 'all') => void
+  setRange: (r: '7' | '30' | '365' | 'all') => void
 }
 
 const supabase = createClient(
@@ -32,6 +41,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+/** Fallback data for mock mode */
 const mockKeywords: KeywordData[] = [
   { keyword: 'project', frequency: 10, averageScore: 7.2 },
   { keyword: 'deadline', frequency: 6, averageScore: 3.5 },
@@ -76,20 +86,28 @@ export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
 
         const maxFreq = Math.max(...keywords.map(k => k.frequency), 1)
 
-        const nodes: PositionedKeyword[] = keywords.map(d => ({
-          ...d,
-          r: (d.frequency / maxFreq) * 60 + 30,
+        // Convert each keyword to a PositionedKeyword
+        const nodes: PositionedKeyword[] = keywords.map(k => ({
+          ...k,
+          r: (k.frequency / maxFreq) * 60 + 30,
           x: Math.random() * 800,
-          y: Math.random() * 500
+          y: Math.random() * 500,
         }))
 
-        const simulation = d3Force.forceSimulation(nodes as any)
+        // Define a typed force simulation
+        const simulation = d3Force.forceSimulation<PositionedKeyword>(nodes)
           .force('charge', d3Force.forceManyBody().strength(5))
           .force('center', d3Force.forceCenter(500, 300))
-          .force('collision', d3Force.forceCollide().radius(d => (d as any).r + 4))
+          .force(
+            'collision',
+            d3Force.forceCollide<PositionedKeyword>().radius(d => d.r + 4)
+          )
           .stop()
 
-        for (let i = 0; i < 300; ++i) simulation.tick()
+        // Run 300 ticks to settle
+        for (let i = 0; i < 300; i++) {
+          simulation.tick()
+        }
 
         setData(nodes)
       } catch (err) {
@@ -102,6 +120,7 @@ export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
     fetchData()
   }, [range, useMock])
 
+  // Map score 0..10 to a color scale
   const colorScale = d3.scaleLinear<string>()
     .domain([0, 5, 10])
     .range(['#7b2cbf', '#cccccc', '#2b9348'])
@@ -109,14 +128,20 @@ export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
   return (
     <div className="bg-white/10 backdrop-blur-md rounded-xl px-6 py-8 shadow-inner relative">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-orange-500 text-center w-full">Keyword-Emotion Bubble Map</h2>
+        <h2 className="text-2xl font-bold text-orange-500 text-center w-full">
+          Keyword-Emotion Bubble Map
+        </h2>
         <div className="absolute right-8 top-6 flex gap-2">
-          {['7', '30', '365', 'all'].map((r) => (
+          {['7', '30', '365', 'all'].map(r => (
             <button
               key={r}
-              onClick={() => setRange(r as any)}
+              onClick={() => setRange(r as '7' | '30' | '365' | 'all')}
               className={`px-3 py-1 rounded-full text-sm font-semibold transition
-                ${range === r ? 'bg-green-600 text-white' : 'bg-white/20 text-green-800 hover:bg-white/30'}`}
+                ${
+                  range === r
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white/20 text-green-800 hover:bg-white/30'
+                }`}
             >
               {r === 'all' ? 'All' : r === '365' ? '1 Year' : `${r} Days`}
             </button>
@@ -126,11 +151,17 @@ export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
 
       <div className="flex justify-center gap-8 mb-4 text-sm text-white">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: '#7b2cbf' }}></span>
+          <span
+            className="inline-block w-4 h-4 rounded-full"
+            style={{ backgroundColor: '#7b2cbf' }}
+          />
           <span>😞 Low Mood</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: '#2b9348' }}></span>
+          <span
+            className="inline-block w-4 h-4 rounded-full"
+            style={{ backgroundColor: '#2b9348' }}
+          />
           <span>😊 Positive Mood</span>
         </div>
       </div>
@@ -141,7 +172,13 @@ export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
         <svg ref={svgRef} viewBox="0 0 1000 600" className="w-full h-[600px]">
           <defs>
             <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="1" dy="4" stdDeviation="4" floodColor="#000" floodOpacity="0.3" />
+              <feDropShadow
+                dx="1"
+                dy="4"
+                stdDeviation="4"
+                floodColor="#000"
+                floodOpacity="0.3"
+              />
             </filter>
             <style>
               {`
@@ -160,9 +197,19 @@ export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
           </defs>
 
           {data.map((d, i) => (
-            <g key={i} className="bubble cursor-pointer" filter="url(#shadow)"
-              onMouseEnter={() => setTooltip({ x: d.x, y: d.y, content: `${d.keyword} → ${d.averageScore.toFixed(1)}` })}
-              onMouseLeave={() => setTooltip(null)}>
+            <g
+              key={i}
+              className="bubble cursor-pointer"
+              filter="url(#shadow)"
+              onMouseEnter={() =>
+                setTooltip({
+                  x: d.x,
+                  y: d.y,
+                  content: `${d.keyword} → ${d.averageScore.toFixed(1)}`
+                })
+              }
+              onMouseLeave={() => setTooltip(null)}
+            >
               <ellipse
                 cx={d.x}
                 cy={d.y}
@@ -191,7 +238,11 @@ export default function KeywordBubbleChart({ moods, range, setRange }: Props) {
       {tooltip && (
         <div
           className="absolute text-xs bg-white text-gray-800 px-3 py-1 rounded shadow border border-gray-200"
-          style={{ top: tooltip.y, left: tooltip.x, transform: 'translate(-50%, -120%)' }}
+          style={{
+            top: tooltip.y,
+            left: tooltip.x,
+            transform: 'translate(-50%, -120%)'
+          }}
         >
           {tooltip.content}
         </div>
