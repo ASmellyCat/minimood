@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { analyzeMoodById } from '@/lib/analyze-and-update-moods'
+
 
 export default function EditMoodPage() {
   const { id } = useParams()
@@ -45,7 +47,6 @@ export default function EditMoodPage() {
     setLoading(true)
     setMessage('')
 
-    // ✅ 判断内容是否有修改
     const textUnchanged = moodText.trim() === initialText.trim()
     const scoreUnchanged = moodScore === initialScore
 
@@ -67,6 +68,7 @@ export default function EditMoodPage() {
     if (error) {
       setMessage('Update failed. Please try again.')
     } else {
+      await analyzeMoodById(id as string)
       setMessage('Mood updated successfully 🎉')
       setTimeout(() => router.push(`/log/${id}`), 1200)
     }
@@ -116,7 +118,7 @@ export default function EditMoodPage() {
           )}
         </div>
 
-        {/* ✅ 底部返回按钮 */}
+
         <Button
           onClick={() => router.push(`/log/${id}`)}
           variant="outline"

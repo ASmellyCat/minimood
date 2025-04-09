@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { useRouter } from 'next/navigation'
+import { analyzeMoodById } from '@/lib/analyze-and-update-moods'
+
+
 
 export default function MoodPage() {
   const [moodText, setMoodText] = useState('')
@@ -26,16 +29,24 @@ export default function MoodPage() {
       return
     }
 
-    const { error } = await supabase.from('mood').insert({
+    const { data, error } = await supabase.from('mood').insert({
       user_id: userData.user?.id,
       mood_text: moodText,
       mood_score: moodScore
-    })
+    }).select()
 
     if (error) {
       console.error('Insert error:', JSON.stringify(error, null, 2))
       setMessage('Failed to submit mood. Please try again.')
     } else {
+      const newId = data[0].id
+      await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: newId }),
+      })
       setMessage('🎉 Mood submitted! Great job taking care of yourself.')
       setMoodText('')
       setMoodScore(5)
