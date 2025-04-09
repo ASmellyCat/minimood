@@ -7,6 +7,8 @@ import * as d3Force from 'd3-force'
 import { useMockMode } from '@/lib/useMock'
 
 const useMock = useMockMode()
+console.log('[Mock Mode?]', useMock)
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,26 +46,26 @@ export default function KeywordBubbleChart() {
 
         let keywords: KeywordData[]
         if (useMock) {
-          keywords = mockKeywords // 来自文件顶部的测试数据
+          keywords = mockKeywords
         } else {
-        
-        const { data: { user }, error } = await supabase.auth.getUser()
-        if (error || !user) throw new Error('User not authenticated')
+          const { data: { user }, error } = await supabase.auth.getUser()
+          if (error || !user) throw new Error('User not authenticated')
 
-        const res = await fetch('/api/cluster-keywords', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ range, userId: user.id })
-        })
+          const res = await fetch('/api/cluster-keywords', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ range, userId: user.id })
+          })
 
-        if (!res.ok) {
-          const text = await res.text()
-          throw new Error(`Server error: ${res.status} - ${text}`)
+          if (!res.ok) {
+            const text = await res.text()
+            throw new Error(`Server error: ${res.status} - ${text}`)
+          }
+
+          const raw = await res.json()
+          keywords = raw.keywords || []
         }
 
-        const raw = await res.json()
-        const keywords: KeywordData[] = raw.keywords || []
-      }
         const maxFreq = Math.max(...keywords.map(k => k.frequency), 1)
 
         const nodes: PositionedKeyword[] = keywords.map(d => ({

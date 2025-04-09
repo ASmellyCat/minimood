@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import {
   ResponsiveContainer,
@@ -11,6 +11,7 @@ import {
   Tooltip,
   Cell
 } from 'recharts'
+import { createClient } from '@supabase/supabase-js'
 
 const EMOTION_COLORS: Record<string, string> = {
   Excited: '#f4a261',
@@ -21,41 +22,45 @@ const EMOTION_COLORS: Record<string, string> = {
   Anger: '#e76f51',
 }
 
-export default function EmotionBarChart({
-  moods,
-  range,
-  setRange
-}: {
-  moods: { emotion_category?: string; created_at?: string }[]
-  range: string
-  setRange: (r: '7' | '30' | '365' | 'all') => void
-}) {
-  const chartData = useMemo(() => {
-    const now = dayjs()
-    const filtered = moods.filter(({ created_at }) => {
-      if (!created_at || range === 'all') return true
-      const days = parseInt(range, 10)
-      return dayjs(created_at).isAfter(now.subtract(days, 'day'))
-    })
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-    const countMap: Record<string, number> = {}
+export default function EmotionBarChartFromAPI() {
+  const [range, setRange] = useState<'7' | '30' | '365' | 'all'>('30')
+  const [data, setData] = useState<{ emotion: string; percentage: number }[]>([])
+  const [loading, setLoading] = useState(false)
 
-    filtered.forEach(({ emotion_category }) => {
-      if (!emotion_category) return
-      countMap[emotion_category] = (countMap[emotion_category] || 0) + 1
-    })
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      const { data: { user }, error } = await supabase.auth.getUser()
+      if (error || !user) return
 
-    const total = Object.values(countMap).reduce((a, b) => a + b, 0)
-    const maxPercentage = Math.max(...Object.values(countMap).map(c => (c / total) * 100))
+      const res = await fetch('/api/emotion-category-cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, range })
+      })
 
-    return {
-      data: Object.entries(countMap).map(([emotion, count]) => ({
-        emotion,
-        percentage: parseFloat(((count / total) * 100).toFixed(2))
-      })),
-      max: Math.ceil(maxPercentage / 10) * 10
+      const json = await res.json()
+      if (res.ok && json.category_freq) {
+        const total = Object.values(json.category_freq).reduce((a: number, b: number) => a + b, 0)
+        const parsed = Object.entries(json.category_freq).map(([emotion, count]) => ({
+          emotion,
+          percentage: parseFloat(((count / total) * 100).toFixed(2))
+        }))
+        setData(parsed)
+      }
+
+      setLoading(false)
     }
-  }, [moods, range])
+
+    fetchData()
+  }, [range])
+
+  const max = Math.ceil(Math.max(...data.map(d => d.percentage), 10) / 10) * 10
 
   const ranges = [
     { label: '7 Days', value: '7' },
@@ -80,33 +85,39 @@ export default function EmotionBarChart({
         ))}
       </div>
 
-      <ResponsiveContainer width="100%" height={360}>
-        <BarChart data={chartData.data} layout="vertical">
-          <XAxis
-            type="number"
-            domain={[0, chartData.max]}
-            tickFormatter={(val) => `${val}%`}
-            stroke="#333"
-            tick={{ fill: '#222', fontSize: 12, fontFamily: 'Inter, sans-serif' }}
-          />
-          <YAxis
-            dataKey="emotion"
-            type="category"
-            width={100}
-            stroke="#333"
-            tick={{ fill: '#222', fontSize: 13, fontWeight: 500, fontFamily: 'Inter, sans-serif' }}
-          />
-          <Tooltip formatter={(val: any) => `${val}%`} />
-          <Bar dataKey="percentage" radius={[10, 10, 10, 10]}>
-            {chartData.data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={EMOTION_COLORS[entry.emotion] || '#8884d8'}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      {loading || data.length === 0 ? (
+        <p className="text-center text-gray-400 text-sm">
+          {loading ? 'Loading emotion data...' : 'No emotion data available.'}
+        </p>
+      ) : (
+        <ResponsiveContainer width="100%" height={360}>
+          <BarChart data={data} layout="vertical">
+            <XAxis
+              type="number"
+              domain={[0, max]}
+              tickFormatter={(val) => `${val}%`}
+              stroke="#333"
+              tick={{ fill: '#222', fontSize: 12, fontFamily: 'Inter, sans-serif' }}
+            />
+            <YAxis
+              dataKey="emotion"
+              type="category"
+              width={100}
+              stroke="#333"
+              tick={{ fill: '#222', fontSize: 13, fontWeight: 500, fontFamily: 'Inter, sans-serif' }}
+            />
+            <Tooltip formatter={(val: any) => `${val}%`} />
+            <Bar dataKey="percentage" radius={[10, 10, 10, 10]}>
+              {data.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={EMOTION_COLORS[entry.emotion] || '#8884d8'}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   )
 }

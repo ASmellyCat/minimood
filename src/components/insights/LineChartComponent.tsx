@@ -9,98 +9,53 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
-type Mood = {
-  id: string
-  mood_score: number
-  created_at: string
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-type Props = {
-  moods: Mood[]
-}
+const emojiTicks = [
+  { value: 0, label: '😢' },
+  { value: 2.5, label: '☹️' },
+  { value: 5, label: '😐' },
+  { value: 7.5, label: '🙂' },
+  { value: 10, label: '😄' },
+]
 
-function formatDateLabel(date: Date): string {
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) // e.g., Apr 2025
-}
-
-// Group moods by YYYY-MM or biweekly key
-function groupMoods(moods: Mood[], granularity: 'daily' | 'biweekly' | 'monthly') {
-  const groups: Record<string, number[]> = {}
-
-  moods.forEach((mood) => {
-    const date = new Date(mood.created_at)
-    let key: string
-
-    if (granularity === 'daily') {
-      key = date.toLocaleDateString()
-    } else if (granularity === 'biweekly') {
-      const year = date.getFullYear()
-      const month = date.getMonth() + 1
-      const half = date.getDate() <= 15 ? '1' : '2'
-      key = `${year}-${month < 10 ? '0' + month : month}-${half}`
-    } else {
-      key = formatDateLabel(date)
-    }
-
-    if (!groups[key]) groups[key] = []
-    groups[key].push(mood.mood_score)
-  })
-
-  const sorted = Object.entries(groups).sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-
-  return sorted.map(([label, scores]) => ({
-    date: label,
-    score: parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)),
-  }))
-}
-
-export default function LineChartComponent({ moods = [] }: Props) {
+export default function LineChartComponentFromAPI() {
   const [range, setRange] = useState<'7' | '30' | '365' | 'all'>('30')
+  const [data, setData] = useState<{ date: string; score: number }[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const chartData = useMemo(() => {
-    if (!moods.length) return []
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      const { data: { user }, error } = await supabase.auth.getUser()
+      if (error || !user) return
 
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
+      const res = await fetch('/api/emotion-trend-cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, range })
+      })
 
-    const allValid = moods.filter((m) => new Date(m.created_at) <= today)
-    const firstDate = new Date(Math.min(...allValid.map((m) => new Date(m.created_at).getTime())))
+      const json = await res.json()
+      if (res.ok && json.trend_points) setData(json.trend_points)
 
-    let filtered = [...allValid]
-
-    const now = new Date()
-    const dateLimit = new Date()
-
-    if (range !== 'all') {
-      const days = parseInt(range)
-      dateLimit.setDate(now.getDate() - days)
-      filtered = allValid.filter((m) => new Date(m.created_at) >= dateLimit)
+      setLoading(false)
     }
 
-    const spanDays = (now.getTime() - (range === 'all' ? firstDate.getTime() : dateLimit.getTime())) / (1000 * 60 * 60 * 24)
-
-    const granularity =
-      spanDays <= 30 ? 'daily' :
-      spanDays <= 365 ? 'biweekly' : 'monthly'
-
-    return groupMoods(filtered, granularity)
-  }, [moods, range])
+    fetchData()
+  }, [range])
 
   const ranges = [
     { label: '7 Days', value: '7' },
     { label: '30 Days', value: '30' },
     { label: '1 Year', value: '365' },
     { label: 'All', value: 'all' },
-  ]
-
-  const emojiTicks = [
-    { value: 0, label: '😢' },
-    { value: 2.5, label: '☹️' },
-    { value: 5, label: '😐' },
-    { value: 7.5, label: '🙂' },
-    { value: 10, label: '😄' },
   ]
 
   return (
@@ -127,13 +82,13 @@ export default function LineChartComponent({ moods = [] }: Props) {
         </div>
       </div>
 
-      {chartData.length === 0 ? (
+      {loading || data.length === 0 ? (
         <p className="text-center text-gray-400 text-sm">
-          No mood data available for this range.
+          {loading ? 'Loading mood trend...' : 'No mood data available for this range.'}
         </p>
       ) : (
         <ResponsiveContainer width="100%" height={450}>
-          <LineChart data={chartData}>
+          <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
             <XAxis
               dataKey="date"

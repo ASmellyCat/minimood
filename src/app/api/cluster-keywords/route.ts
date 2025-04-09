@@ -1,6 +1,8 @@
-// app/api/cluster-keywords/route.ts
+// ✅ /app/api/cluster-keywords/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getKeywordScoresInRange, clusterKeywords } from '@/lib/cluster-keywords'
+import { getKeywordScoresInRange, clusterKeywords } from '@/lib/analytics/cluster-keywords'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+import { isCacheFresh } from '@/lib/cache/isCacheFresh'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +10,18 @@ export async function POST(req: NextRequest) {
 
     if (!userId || typeof userId !== 'string') {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
+    }
+
+
+    const { data: cached } = await supabaseAdmin
+      .from('bubble_keywords_cache')
+      .select('keywords_cluster, updated_at')
+      .eq('user_id', userId)
+      .eq('range', range)
+      .maybeSingle()
+
+    if (cached && isCacheFresh(cached.updated_at)) {
+      return NextResponse.json({ keywords: cached.keywords_cluster, from: 'cache' })
     }
 
     const raw = await getKeywordScoresInRange(range, userId)
@@ -18,15 +32,21 @@ export async function POST(req: NextRequest) {
       return {
         keyword,
         frequency: scores.length,
-        averageScore: parseFloat(avg.toFixed(2)),
-        x: Math.random() * 100,
-        y: Math.random() * 100,
+        averageScore: parseFloat(avg.toFixed(2))
       }
     })
 
-    return NextResponse.json({ keywords: result })
+
+    await supabaseAdmin.from('bubble_keywords_cache').upsert({
+      user_id: userId,
+      range,
+      keywords_cluster: result,
+      updated_at: new Date().toISOString()
+    })
+
+    return NextResponse.json({ keywords: result, from: 'computed' })
   } catch (err) {
-    console.error('❌ cluster-keywords route error:', err)
+    console.error('[cluster-keywords] ❌', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

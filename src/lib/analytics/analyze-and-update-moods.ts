@@ -1,6 +1,6 @@
 // lib/analyze-and-update-moods.ts
 import OpenAI from 'openai'
-import { supabaseAdmin } from './supabase-admin'
+import { supabaseAdmin } from '../supabase-admin'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 

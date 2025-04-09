@@ -1,23 +1,20 @@
 import OpenAI from 'openai'
-import { supabaseAdmin } from './supabase-admin'
+import { supabaseAdmin } from '../supabase-admin'
 import { cosineSimilarity } from '@/utils/cosine'
 
+export type KeywordScore = { keyword: string; scores: number[] }
+export type ClusteredKeyword = { keyword: string; scores: number[] }
 
-export async function getKeywordScoresInRange(range: string, userId: string) {
+export async function getKeywordScoresInRange(
+  range: string,
+  userId: string
+): Promise<KeywordScore[]> {
   let from = new Date()
   switch (range) {
-    case '7':
-      from.setDate(from.getDate() - 7)
-      break
-    case '30':
-      from.setDate(from.getDate() - 30)
-      break
-    case '365':
-      from.setFullYear(from.getFullYear() - 1)
-      break
-    case 'all':
-    default:
-      from = new Date('2000-01-01')
+    case '7': from.setDate(from.getDate() - 7); break
+    case '30': from.setDate(from.getDate() - 30); break
+    case '365': from.setFullYear(from.getFullYear() - 1); break
+    case 'all': default: from = new Date('2000-01-01')
   }
 
   const { data, error } = await supabaseAdmin
@@ -31,24 +28,26 @@ export async function getKeywordScoresInRange(range: string, userId: string) {
     return []
   }
 
-  const flattened: { keyword: string; scores: number[] }[] = []
-  data.forEach(entry => {
-    if (Array.isArray(entry.keywords)) {
-      entry.keywords.forEach((k: string) => {
-        const existing = flattened.find(f => f.keyword === k)
-        if (existing) {
-          existing.scores.push(entry.mood_score)
-        } else {
-          flattened.push({ keyword: k, scores: [entry.mood_score] })
-        }
-      })
-    }
+  const flattened: KeywordScore[] = []
+
+  data?.forEach(entry => {
+    if (!Array.isArray(entry.keywords)) return
+    entry.keywords.forEach((k: string) => {
+      const existing = flattened.find(f => f.keyword === k)
+      if (existing) {
+        existing.scores.push(entry.mood_score)
+      } else {
+        flattened.push({ keyword: k, scores: [entry.mood_score] })
+      }
+    })
   })
 
   return flattened
 }
 
-export async function clusterKeywords(keywords: { keyword: string; scores: number[] }[]) {
+export async function clusterKeywords(
+  keywords: KeywordScore[]
+): Promise<ClusteredKeyword[]> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
   const unique = Array.from(new Set(keywords.map(k => k.keyword)))
@@ -62,7 +61,11 @@ export async function clusterKeywords(keywords: { keyword: string; scores: numbe
     embedding: e.embedding,
   }))
 
-  const clusters: Record<string, { scores: number[]; members: string[]; embedding: number[] }> = {}
+  const clusters: Record<string, {
+    scores: number[]
+    members: string[]
+    embedding: number[]
+  }> = {}
 
   for (const vec of vectors) {
     let found = false
@@ -78,6 +81,7 @@ export async function clusterKeywords(keywords: { keyword: string; scores: numbe
         break
       }
     }
+
     if (!found) {
       const original = keywords.find(k => k.keyword === vec.keyword)
       if (original) {

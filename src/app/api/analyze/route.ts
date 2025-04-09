@@ -1,6 +1,6 @@
 // app/api/analyze/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeMoodById } from '@/lib/analyze-and-update-moods'
+import { analyzeMoodById } from '@/lib/analytics/analyze-and-update-moods'
 
 export async function POST(req: NextRequest) {
   try {
