@@ -1,7 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import dayjs from 'dayjs'
 import {
   ResponsiveContainer,
   BarChart,
@@ -9,9 +7,20 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Cell
+  Cell,
 } from 'recharts'
+import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
+
+type Props = {
+  range: '7' | '30' | '365' | 'all'
+  setRange: (r: '7' | '30' | '365' | 'all') => void
+}
+
+type EmotionData = {
+  emotion: string
+  percentage: number
+}
 
 const EMOTION_COLORS: Record<string, string> = {
   Excited: '#f4a261',
@@ -27,9 +36,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export default function EmotionBarChartFromAPI() {
-  const [range, setRange] = useState<'7' | '30' | '365' | 'all'>('30')
-  const [data, setData] = useState<{ emotion: string; percentage: number }[]>([])
+export default function EmotionBarChart({ range, setRange }: Props) {
+  const [data, setData] = useState<EmotionData[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -41,7 +49,7 @@ export default function EmotionBarChartFromAPI() {
       const res = await fetch('/api/emotion-category-cache', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, range })
+        body: JSON.stringify({ userId: user.id, range }),
       })
 
       const json = await res.json()
@@ -49,7 +57,7 @@ export default function EmotionBarChartFromAPI() {
         const total = Object.values(json.category_freq).reduce((a: number, b: number) => a + b, 0)
         const parsed = Object.entries(json.category_freq).map(([emotion, count]) => ({
           emotion,
-          percentage: parseFloat(((count / total) * 100).toFixed(2))
+          percentage: parseFloat(((count / total) * 100).toFixed(2)),
         }))
         setData(parsed)
       }
@@ -62,7 +70,7 @@ export default function EmotionBarChartFromAPI() {
 
   const max = Math.ceil(Math.max(...data.map(d => d.percentage), 10) / 10) * 10
 
-  const ranges = [
+  const ranges: { label: string; value: '7' | '30' | '365' | 'all' }[] = [
     { label: '7 Days', value: '7' },
     { label: '30 Days', value: '30' },
     { label: '1 Year', value: '365' },
@@ -70,15 +78,18 @@ export default function EmotionBarChartFromAPI() {
   ]
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl px-6 py-6 shadow-inner">
-      <h2 className="text-2xl font-bold text-orange-500 mb-4 text-center">Emotion Category Frequency</h2>
+    <div className="bg-white rounded-xl px-6 py-6 shadow-md w-full max-w-6xl mx-auto">
+      <h2 className="text-2xl font-bold text-orange-600 mb-4 text-center">
+        Emotion Category Frequency
+      </h2>
+
       <div className="flex justify-center items-center mb-4 gap-2">
         {ranges.map((r) => (
           <button
             key={r.value}
-            onClick={() => setRange(r.value as any)}
+            onClick={() => setRange(r.value)}
             className={`px-3 py-1 rounded-full text-sm font-semibold transition
-              ${range === r.value ? 'bg-indigo-600 text-white' : 'bg-white/20 text-indigo-800 hover:bg-white/30'}`}
+              ${range === r.value ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'}`}
           >
             {r.label}
           </button>
@@ -96,23 +107,21 @@ export default function EmotionBarChartFromAPI() {
               type="number"
               domain={[0, max]}
               tickFormatter={(val) => `${val}%`}
-              stroke="#333"
-              tick={{ fill: '#222', fontSize: 12, fontFamily: 'Inter, sans-serif' }}
+              tick={{ fontSize: 12, fill: '#333' }}
             />
             <YAxis
-              dataKey="emotion"
               type="category"
+              dataKey="emotion"
               width={100}
-              stroke="#333"
-              tick={{ fill: '#222', fontSize: 13, fontWeight: 500, fontFamily: 'Inter, sans-serif' }}
+              tick={{ fontSize: 13, fill: '#222', fontWeight: 500 }}
             />
-            <Tooltip formatter={(val: any) => `${val}%`} />
+            <Tooltip
+              formatter={(value: number | string) => `${value}%`}
+              cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+            />
             <Bar dataKey="percentage" radius={[10, 10, 10, 10]}>
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={EMOTION_COLORS[entry.emotion] || '#8884d8'}
-                />
+              {data.map((entry, idx) => (
+                <Cell key={idx} fill={EMOTION_COLORS[entry.emotion] || '#8884d8'} />
               ))}
             </Bar>
           </BarChart>

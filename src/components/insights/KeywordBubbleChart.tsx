@@ -6,9 +6,19 @@ import * as d3 from 'd3'
 import * as d3Force from 'd3-force'
 import { useMockMode } from '@/lib/useMock'
 
-const useMock = useMockMode()
-console.log('[Mock Mode?]', useMock)
+type KeywordData = {
+  keyword: string
+  frequency: number
+  averageScore: number
+  created_at?: string
+}
 
+type PositionedKeyword = KeywordData & { x: number; y: number; r: number }
+
+type Props = {
+  range: '7' | '30' | '365' | 'all'
+  setRange: (range: '7' | '30' | '365' | 'all') => void
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,21 +33,12 @@ const mockKeywords: KeywordData[] = [
   { keyword: 'rain', frequency: 5, averageScore: 4.4 },
 ]
 
-type KeywordData = {
-  keyword: string
-  frequency: number
-  averageScore: number
-  created_at?: string
-}
-
-type PositionedKeyword = KeywordData & { x: number; y: number; r: number }
-
-export default function KeywordBubbleChart() {
-  const [range, setRange] = useState<'7' | '30' | '365' | 'all'>('30')
+export default function KeywordBubbleChart({ range, setRange }: Props) {
   const [data, setData] = useState<PositionedKeyword[]>([])
   const [loading, setLoading] = useState(true)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
+  const useMock = useMockMode()
 
   useEffect(() => {
     const fetchData = async () => {

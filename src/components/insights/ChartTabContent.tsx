@@ -30,8 +30,8 @@ export default function ChartTabContent({ moods }: Props) {
 
   return (
     <section className="py-10 px-4 max-w-6xl mx-auto space-y-16">
-      <LineChartComponent moods={filteredMoods} range={range} />
-      <KeywordBubbleChart range={range} />
+      <LineChartComponent range={range} setRange={setRange} />
+      <KeywordBubbleChart range={range} setRange={setRange} />
       <EmotionBarChart moods={moods} range={range} setRange={setRange} />
     </section>
   )

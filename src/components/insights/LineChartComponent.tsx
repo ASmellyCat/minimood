@@ -12,6 +12,16 @@ import {
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
+type Props = {
+  range: '7' | '30' | '365' | 'all'
+  setRange: (r: '7' | '30' | '365' | 'all') => void
+}
+
+type TrendPoint = {
+  date: string
+  score: number
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -25,13 +35,12 @@ const emojiTicks = [
   { value: 10, label: '😄' },
 ]
 
-export default function LineChartComponentFromAPI() {
-  const [range, setRange] = useState<'7' | '30' | '365' | 'all'>('30')
-  const [data, setData] = useState<{ date: string; score: number }[]>([])
+export default function LineChartComponent({ range, setRange }: Props) {
+  const [data, setData] = useState<TrendPoint[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTrend = async () => {
       setLoading(true)
       const { data: { user }, error } = await supabase.auth.getUser()
       if (error || !user) return
@@ -43,15 +52,17 @@ export default function LineChartComponentFromAPI() {
       })
 
       const json = await res.json()
-      if (res.ok && json.trend_points) setData(json.trend_points)
+      if (res.ok && json.trend_points) {
+        setData(json.trend_points)
+      }
 
       setLoading(false)
     }
 
-    fetchData()
+    fetchTrend()
   }, [range])
 
-  const ranges = [
+  const ranges: { label: string; value: '7' | '30' | '365' | 'all' }[] = [
     { label: '7 Days', value: '7' },
     { label: '30 Days', value: '30' },
     { label: '1 Year', value: '365' },
@@ -59,21 +70,21 @@ export default function LineChartComponentFromAPI() {
   ]
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl px-6 py-8 w-full max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-3">
-        <h2 className="text-2xl font-extrabold text-orange-600 tracking-tight">
+    <div className="bg-white rounded-xl px-6 py-6 shadow-md w-full max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-3 flex-wrap">
+        <h2 className="text-2xl font-bold text-orange-600 tracking-tight">
           Mood Trend ({range === 'all' ? 'All Time' : `Last ${range} Days`})
         </h2>
         <div className="flex gap-2 flex-wrap">
           {ranges.map((r) => (
             <button
               key={r.value}
-              onClick={() => setRange(r.value as any)}
+              onClick={() => setRange(r.value)}
               className={`px-3 py-1 rounded-full text-sm font-semibold transition
                 ${
                   range === r.value
                     ? 'bg-orange-500 text-white'
-                    : 'bg-white/20 text-orange-700 hover:bg-white/30'
+                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                 }`}
             >
               {r.label}
@@ -89,11 +100,10 @@ export default function LineChartComponentFromAPI() {
       ) : (
         <ResponsiveContainer width="100%" height={450}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
+            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.15} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12, fill: '#555' }}
-              interval="preserveStartEnd"
+              tick={{ fontSize: 12, fill: '#444' }}
               angle={-30}
               textAnchor="end"
               height={80}
@@ -101,15 +111,12 @@ export default function LineChartComponentFromAPI() {
             <YAxis
               domain={[0, 10]}
               ticks={emojiTicks.map((t) => t.value)}
-              tickFormatter={(val) => {
-                const found = emojiTicks.find((t) => t.value === val)
-                return found ? found.label : val
-              }}
+              tickFormatter={(val) => emojiTicks.find(t => t.value === val)?.label || val}
               tick={{ fontSize: 16 }}
             />
             <Tooltip
               contentStyle={{ backgroundColor: 'white', borderRadius: 8 }}
-              formatter={(value: any) => [`Score: ${value}`, '']}
+              formatter={(val: number) => [`Score: ${val}`, '']}
               labelStyle={{ color: '#888' }}
             />
             <Line
@@ -119,7 +126,7 @@ export default function LineChartComponentFromAPI() {
               strokeWidth={3}
               dot={{ r: 4 }}
               activeDot={{ r: 6 }}
-              connectNulls={false}
+              connectNulls
             />
           </LineChart>
         </ResponsiveContainer>
