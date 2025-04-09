@@ -29,6 +29,7 @@ export default function MoodPage() {
       return
     }
 
+
     const { data, error } = await supabase.from('mood').insert({
       user_id: userData.user?.id,
       mood_text: moodText,

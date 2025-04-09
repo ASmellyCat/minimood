@@ -1,6 +1,6 @@
 // lib/analyze-and-update-moods.ts
 import OpenAI from 'openai'
-import { supabase } from './supabase'
+import { supabaseAdmin } from './supabase-admin'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
@@ -11,7 +11,7 @@ export async function analyzeMoodById(id: string) {
     return
   }
 
-  const { data: mood, error: fetchError } = await supabase
+  const { data: mood, error: fetchError } = await supabaseAdmin
     .from('mood')
     .select('id, mood_text, mood_score')
     .eq('id', id)
@@ -65,7 +65,7 @@ export async function analyzeMoodById(id: string) {
       emotion: string
     }
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('mood')
       .update({
         keywords: parsed.keywords,

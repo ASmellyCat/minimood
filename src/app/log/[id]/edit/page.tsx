@@ -68,7 +68,13 @@ export default function EditMoodPage() {
     if (error) {
       setMessage('Update failed. Please try again.')
     } else {
-      await analyzeMoodById(id as string)
+      await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id }),
+      })      
       setMessage('Mood updated successfully 🎉')
       setTimeout(() => router.push(`/log/${id}`), 1200)
     }
