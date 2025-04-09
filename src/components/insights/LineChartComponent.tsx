@@ -19,6 +19,7 @@ type LineChartProps = {
     created_at: string
   }[]
   range: '7' | '30' | '365' | 'all'
+  setRange: React.Dispatch<React.SetStateAction<'7' | '30' | '365' | 'all'>>
 }
 
 
@@ -40,7 +41,7 @@ const emojiTicks = [
   { value: 10, label: '😄' },
 ]
 
-export default function LineChartComponent({ moods, range }: LineChartProps) {
+export default function LineChartComponent({ moods, range, setRange }: LineChartProps) {
   const [data, setData] = useState<TrendPoint[]>([])
   const [loading, setLoading] = useState(false)
 
